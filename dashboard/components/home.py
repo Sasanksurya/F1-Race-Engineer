@@ -1,0 +1,63 @@
+"""Home: session overview KPIs, in the style of a race-week dashboard front page."""
+
+import streamlit as st
+from services import fastf1_service as ff1
+
+
+def _kpi_card(label: str, value: str, sub: str = "", accent: str = "#e10600"):
+    st.markdown(
+        f"""
+        <div style="border:1px solid #262b36;border-radius:10px;padding:18px;
+                    background:#11141c;border-top:3px solid {accent};min-height:110px;">
+            <div style="font-size:12px;color:#8a92a6;letter-spacing:0.03em;">{label}</div>
+            <div style="font-size:26px;font-weight:700;color:white;margin-top:6px;">{value}</div>
+            <div style="font-size:12px;color:#8a92a6;margin-top:4px;">{sub}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render(session, year: int, event: str):
+    st.subheader("Race Weekend Overview")
+
+    results = ff1.get_session_results(session)
+    weather = ff1.get_weather_data(session)
+    rc = ff1.get_race_control_messages(session)
+    pit_laps = ff1.get_pit_stops(session).dropna(subset=["PitInTime"])
+
+    leader = results.sort_values("Position").iloc[0] if not results.empty else None
+    incidents = rc[rc["Category"].isin(["SafetyCar", "VirtualSafetyCar"])]
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        _kpi_card("Session Leader", leader["FullName"] if leader is not None else "-",
+                   leader.get("TeamName", "") if leader is not None else "")
+    with c2:
+        _kpi_card("Track Temperature", f"{weather['TrackTemp'].mean():.1f} degC",
+                   "average across session", accent="#00d2be")
+    with c3:
+        _kpi_card("Safety Car Periods", str(len(incidents)),
+                   "SC / VSC events this session", accent="#f0d43a")
+    with c4:
+        _kpi_card("Total Pit Stops", str(len(pit_laps)),
+                   f"across {results.shape[0]} drivers", accent="#3671C6")
+
+    st.divider()
+
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        st.markdown("#### Session Result (Top 10)")
+        top10 = results.sort_values("Position").head(10)[
+            ["Position", "FullName", "TeamName", "GridPosition", "Points"]
+        ].rename(columns={"FullName": "Driver", "TeamName": "Team", "GridPosition": "Grid"})
+        st.dataframe(top10, use_container_width=True, hide_index=True)
+
+    with col_b:
+        st.markdown("#### Session Info")
+        event_info = session.event
+        st.write(f"Season: **{year}**")
+        st.write(f"Grand Prix: **{event}**")
+        st.write(f"Circuit: **{event_info.get('Location', '-')}**")
+        st.write(f"Country: **{event_info.get('Country', '-')}**")
+        st.write(f"Round: **{int(event_info.get('RoundNumber', 0))}**")

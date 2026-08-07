@@ -1,0 +1,21 @@
+# FastF1 cache — large binary files, never commit these
+dashboard/data/ff1_cache/
+**/*.sqlite
+**/*.ff1pkl
+**/cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
