@@ -2,6 +2,7 @@
 
 import streamlit as st
 from services import fastf1_service as ff1
+from components.html_utils import render_html
 
 
 def render(session):
@@ -41,22 +42,19 @@ def render(session):
                 )
 
             with col:
-                st.markdown(
-                    f"""
-                    <div style="border:1px solid #262b36;border-radius:10px;padding:10px;
-                                background:linear-gradient(160deg, #{team_color}22, #11141c);
-                                margin-bottom:14px;">
-                        {photo_html}
-                        <div style="font-size:11px;color:#8a92a6;letter-spacing:0.04em;">
-                            {drv.get('TeamName', '-')}
-                        </div>
-                        <div style="font-size:16px;font-weight:700;color:white;margin-top:2px;">
-                            {drv.get('FullName', drv['Abbreviation'])}
-                        </div>
-                        <div style="font-size:13px;color:#{team_color};margin-top:6px;">
-                            Car #{drv.get('DriverNumber', '-')} &middot; {drv.get('CountryCode', '-')}
-                        </div>
+                render_html(f"""
+                <div style="border:1px solid #262b36;border-radius:10px;padding:10px;
+                            background:linear-gradient(160deg, #{team_color}22, #11141c);
+                            margin-bottom:14px;">
+                    {photo_html}
+                    <div style="font-size:11px;color:#8a92a6;letter-spacing:0.04em;">
+                        {drv.get('TeamName', '-')}
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                    <div style="font-size:16px;font-weight:700;color:white;margin-top:2px;">
+                        {drv.get('FullName', drv['Abbreviation'])}
+                    </div>
+                    <div style="font-size:13px;color:#{team_color};margin-top:6px;">
+                        Car #{drv.get('DriverNumber', '-')} &middot; {drv.get('CountryCode', '-')}
+                    </div>
+                </div>
+                """)

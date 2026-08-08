@@ -15,6 +15,7 @@ from streamlit_option_menu import option_menu
 sys.path.append(os.path.dirname(__file__))
 
 from services import fastf1_service as ff1
+from components.html_utils import render_html
 from components import (
     home, weather_analysis, race_incident_analysis, standings, race_pace_analysis,
     tyre_degradation, pit_stop_analysis, telemetry, driver_comparison,
@@ -30,14 +31,10 @@ st.set_page_config(
 # ---------------------------------------------------------------------
 # F1-style dark theme
 # ---------------------------------------------------------------------
-st.markdown("""
-<style>
+st.markdown(
+    """<style>
     @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
-
     html, body, [class*="css"]  { font-family: 'Titillium Web', sans-serif !important; }
-
-    /* Force the dark background on every container Streamlit renders,
-       across versions: some ship stApp, others stAppViewContainer/stMain. */
     html, body,
     .stApp,
     [data-testid="stAppViewContainer"],
@@ -48,14 +45,10 @@ st.markdown("""
     }
     [data-testid="stHeader"] { background-color: transparent !important; }
     section[data-testid="stSidebar"] { display: none !important; }
-
-    /* Default body/paragraph text: Streamlit's light-theme default is
-       near-black, which disappears on a dark background unless overridden. */
     p, span, label, div, li, .stMarkdown, .stCaption {
         color: #e6e8ee;
     }
     h1, h2, h3, h4 { font-family: 'Titillium Web', sans-serif; font-weight: 700; color: #ffffff !important; }
-
     div[data-testid="stMetric"] {
         background-color: #11141c;
         border: 1px solid #262b36;
@@ -65,20 +58,15 @@ st.markdown("""
     }
     div[data-testid="stMetricLabel"] { color: #8a92a6 !important; }
     div[data-testid="stMetricValue"] { color: #ffffff !important; }
-
     .stTabs [data-baseweb="tab-list"] { gap: 4px; }
     .stTabs [data-baseweb="tab"] {
         background-color: #11141c; border-radius: 8px 8px 0 0;
         color: #8a92a6; padding: 8px 18px;
     }
     .stTabs [aria-selected="true"] { color: #ffffff !important; border-bottom: 3px solid #e10600; }
-
-    /* Select boxes and multiselect in the top bar */
     div[data-baseweb="select"] > div { background-color: #11141c !important; border-color: #262b36 !important; color: #ffffff !important; }
     div[data-baseweb="select"] span { color: #ffffff !important; }
-
     .block-container { padding-top: 1.2rem; }
-
     .f1-topbar {
         display: flex; align-items: center; justify-content: space-between;
         padding: 6px 0 14px 0; margin-bottom: 4px;
@@ -92,8 +80,9 @@ st.markdown("""
     }
     .f1-logo-text { font-size: 19px; font-weight: 800; color: #ffffff !important; letter-spacing: 0.01em; }
     .f1-logo-sub { font-size: 11px; color: #8a92a6 !important; margin-top: -2px; }
-</style>
-""", unsafe_allow_html=True)
+    </style>""",
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------------------
 # Top bar: logo + season / event / session selector
@@ -101,20 +90,17 @@ st.markdown("""
 logo_col, season_col, event_col, session_col, load_col = st.columns([3, 1.1, 2, 1.3, 1])
 
 with logo_col:
-    st.markdown(
-        """
-        <div class="f1-topbar">
-            <div class="f1-logo">
-                <div class="f1-logo-mark">RE</div>
-                <div>
-                    <div class="f1-logo-text">Race Engineer Dashboard</div>
-                    <div class="f1-logo-sub">Live timing, telemetry &amp; strategy, powered by FastF1</div>
-                </div>
+    render_html("""
+    <div class="f1-topbar">
+        <div class="f1-logo">
+            <div class="f1-logo-mark">RE</div>
+            <div>
+                <div class="f1-logo-text">Race Engineer Dashboard</div>
+                <div class="f1-logo-sub">Live timing, telemetry &amp; strategy, powered by FastF1</div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+    """)
 
 with season_col:
     year = st.selectbox("Season", options=list(range(2024, 2018, -1)), index=0, label_visibility="collapsed")

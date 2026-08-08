@@ -1,8 +1,9 @@
-"""Teams: constructor card view with team color, an original car silhouette, and driver lineup."""
+"""Teams: constructor card view with team color, car art, and driver lineup."""
 
 import streamlit as st
 from services import fastf1_service as ff1
-from components.car_art import car_svg
+from components.car_art import car_svg, team_car_image_path
+from components.html_utils import render_html
 
 
 def render(session):
@@ -22,25 +23,30 @@ def render(session):
         for col, (_, team) in zip(cols, row.iterrows()):
             color = team.get("TeamColor", "e10600")
             drivers_html = "".join(f"<div>{d}</div>" for d in team["Drivers"])
+            image_path = team_car_image_path(team["TeamName"])
+
             with col:
-                st.markdown(
-                    f"""
-                    <div style="border:1px solid #262b36;border-radius:10px;padding:16px;
-                                background:linear-gradient(160deg, #{color}22, #11141c);
-                                margin-bottom:14px;min-height:210px;">
-                        <div style="font-size:18px;font-weight:700;color:#{color};">
-                            {team['TeamName']}
-                        </div>
-                        <div style="display:flex;justify-content:center;margin:10px 0;">
+                with st.container(border=True):
+                    render_html(f"""
+                    <div style="font-size:18px;font-weight:700;color:#{color};">
+                        {team['TeamName']}
+                    </div>
+                    """)
+
+                    if image_path:
+                        st.image(image_path, use_container_width=True)
+                    else:
+                        render_html(f"""
+                        <div style="display:flex;justify-content:center;margin:8px 0;">
                             {car_svg(color, width=170)}
                         </div>
-                        <div style="font-size:12px;color:#8a92a6;margin:8px 0;">
-                            {drivers_html}
-                        </div>
-                        <div style="font-size:13px;color:white;margin-top:10px;">
-                            Session points: {team['Points']}
-                        </div>
+                        """)
+
+                    render_html(f"""
+                    <div style="font-size:12px;color:#8a92a6;margin:8px 0;">
+                        {drivers_html}
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                    <div style="font-size:13px;color:white;">
+                        Session points: {team['Points']}
+                    </div>
+                    """)
