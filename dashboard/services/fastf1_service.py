@@ -37,10 +37,37 @@ def load_session(year: int, event: str, session_type: str):
     Cached via st.cache_resource so every dashboard component that asks
     for the same (year, event, session_type) reuses the same object
     instead of re-fetching it from the timing servers.
+
+    Telemetry is by far the heaviest payload FastF1 pulls in, and on a
+    resource-limited host (like Streamlit Cloud's free tier) it can time
+    out or fail while laps/weather/results would have succeeded fine. If
+    the full load fails, we retry once without telemetry so the rest of
+    the dashboard still works; telemetry-only pages will simply show a
+    "not available" message for that session instead of crashing the app.
     """
     session = fastf1.get_session(year, event, session_type)
-    session.load(laps=True, telemetry=True, weather=True, messages=True)
+    try:
+        session.load(laps=True, telemetry=True, weather=True, messages=True)
+    except Exception:
+        session = fastf1.get_session(year, event, session_type)
+        session.load(laps=True, telemetry=False, weather=True, messages=True)
+
+    # Confirm laps actually came through. Accessing .laps on a session that
+    # didn't finish loading raises fastf1.exceptions.DataNotLoadedError;
+    # we convert that into a plain RuntimeError with a clearer message so
+    # it's obvious this is a load failure, not a bug in the dashboard code.
+    try:
+        loaded_ok = session.laps is not None and not session.laps.empty
+    except Exception:
+        loaded_ok = False
+    if not loaded_ok:
+        raise RuntimeError(
+            f"FastF1 could not load lap data for {year} {event} ({session_type}). "
+            f"This is usually a temporary network or timing-server issue. Try Load again."
+        )
+
     return session
+
 
 
 @st.cache_data(show_spinner=False)

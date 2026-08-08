@@ -10,8 +10,16 @@ def render(session, driver_code: str):
     driver_name = ff1.full_name(session, driver_code)
     st.subheader(f"Telemetry Analysis: {driver_name}")
 
-    tel = ff1.get_fastest_lap_telemetry(session, driver_code)
-    pos = ff1.get_position_telemetry(session, driver_code)
+    try:
+        tel = ff1.get_fastest_lap_telemetry(session, driver_code)
+        pos = ff1.get_position_telemetry(session, driver_code)
+    except Exception:
+        st.warning(
+            "Telemetry data isn't available for this session right now. "
+            "Lap times, standings, tyre and pit stop pages don't need telemetry "
+            "and should still work normally. Try reloading the session from the top bar."
+        )
+        return
 
     st.markdown("#### Circuit Map: Fastest Lap Line, Coloured by Speed")
     speed_for_pos = (

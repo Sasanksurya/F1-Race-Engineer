@@ -148,11 +148,23 @@ if load_clicked or st.session_state.session_obj is None:
     try:
         st.session_state.session_obj = ff1.load_session(year, event, session_type)
     except Exception as e:
+        st.session_state.session_obj = None
         st.error(f"Failed to load session data from FastF1: {e}")
+        st.info("This is usually a temporary network or timing-server issue on the host. Click Load to try again.")
         st.stop()
 
 session = st.session_state.session_obj
-drivers = sorted(session.laps["Driver"].dropna().unique().tolist())
+
+try:
+    drivers = sorted(session.laps["Driver"].dropna().unique().tolist())
+except Exception:
+    # Defensive fallback: even if load_session() reports success, guard
+    # against a session object that somehow still isn't fully populated
+    # (e.g. a stale cached object from before this check existed).
+    st.session_state.session_obj = None
+    st.error("This session's lap data isn't available right now. Click Load to try again.")
+    st.stop()
+
 if not drivers:
     st.warning("No lap data available for this session yet.")
     st.stop()

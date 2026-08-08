@@ -47,8 +47,15 @@ def render(session, driver_a: str, driver_b: str):
 
     st.divider()
 
-    tel_a = ff1.get_fastest_lap_telemetry(session, driver_a)
-    tel_b = ff1.get_fastest_lap_telemetry(session, driver_b)
+    try:
+        tel_a = ff1.get_fastest_lap_telemetry(session, driver_a)
+        tel_b = ff1.get_fastest_lap_telemetry(session, driver_b)
+    except Exception:
+        st.warning(
+            "Telemetry data isn't available for this session right now, so the speed trace "
+            "can't be shown. Try reloading the session from the top bar."
+        )
+        return
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=tel_a["Distance"], y=tel_a["Speed"], name=name_a, line=dict(color="#e10600")))
