@@ -1,7 +1,8 @@
-"""Home: session overview KPIs, in the style of a race-week dashboard front page."""
+"""Home: race-week hero banner + session overview KPIs."""
 
 import streamlit as st
 from services import fastf1_service as ff1
+from components.car_art import car_svg
 
 
 def _kpi_card(label: str, value: str, sub: str = "", accent: str = "#e10600"):
@@ -18,9 +19,44 @@ def _kpi_card(label: str, value: str, sub: str = "", accent: str = "#e10600"):
     )
 
 
-def render(session, year: int, event: str):
-    st.subheader("Race Weekend Overview")
+def _hero(year: int, event: str, circuit: str, country: str, round_no: int, leader_name: str, leader_team: str):
+    st.markdown(
+        f"""
+        <div style="position:relative;overflow:hidden;border-radius:14px;
+                    background:radial-gradient(circle at 15% 30%, #2a0a08, #0a0d14 70%);
+                    border:1px solid #2a1216;padding:28px 30px;margin-bottom:1.5rem;">
+            <div style="position:absolute;top:0;left:0;right:0;height:5px;
+                        background:repeating-linear-gradient(90deg, #e10600 0 24px, #ffffff 24px 30px, #e10600 30px 54px, #11141c 54px 60px);
+                        opacity:0.9;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;">
+                <div>
+                    <div style="font-size:12px;letter-spacing:0.12em;color:#e10600;font-weight:700;">
+                        ROUND {round_no} &middot; {year} SEASON
+                    </div>
+                    <div style="font-size:32px;font-weight:800;color:white;margin-top:6px;line-height:1.15;">
+                        {event}
+                    </div>
+                    <div style="font-size:13px;color:#8a92a6;margin-top:6px;">
+                        {circuit}, {country}
+                    </div>
+                    <div style="margin-top:18px;font-size:13px;color:#8a92a6;">
+                        Session leader
+                    </div>
+                    <div style="font-size:18px;font-weight:700;color:white;">
+                        {leader_name} <span style="font-size:13px;font-weight:400;color:#8a92a6;">&middot; {leader_team}</span>
+                    </div>
+                </div>
+                <div style="opacity:0.9;">
+                    {car_svg("e10600", width=260)}
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
+
+def render(session, year: int, event: str):
     results = ff1.get_session_results(session)
     weather = ff1.get_weather_data(session)
     rc = ff1.get_race_control_messages(session)
@@ -28,6 +64,15 @@ def render(session, year: int, event: str):
 
     leader = results.sort_values("Position").iloc[0] if not results.empty else None
     incidents = rc[rc["Category"].isin(["SafetyCar", "VirtualSafetyCar"])]
+    event_info = session.event
+
+    _hero(
+        year, event,
+        event_info.get("Location", "-"), event_info.get("Country", "-"),
+        int(event_info.get("RoundNumber", 0)),
+        leader["FullName"] if leader is not None else "-",
+        leader.get("TeamName", "-") if leader is not None else "-",
+    )
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -55,7 +100,6 @@ def render(session, year: int, event: str):
 
     with col_b:
         st.markdown("#### Session Info")
-        event_info = session.event
         st.write(f"Season: **{year}**")
         st.write(f"Grand Prix: **{event}**")
         st.write(f"Circuit: **{event_info.get('Location', '-')}**")

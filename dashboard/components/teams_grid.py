@@ -1,7 +1,8 @@
-"""Teams: constructor card view with team color, car, and driver lineup."""
+"""Teams: constructor card view with team color, an original car silhouette, and driver lineup."""
 
 import streamlit as st
 from services import fastf1_service as ff1
+from components.car_art import car_svg
 
 
 def render(session):
@@ -26,9 +27,12 @@ def render(session):
                     f"""
                     <div style="border:1px solid #262b36;border-radius:10px;padding:16px;
                                 background:linear-gradient(160deg, #{color}22, #11141c);
-                                margin-bottom:14px;min-height:150px;">
+                                margin-bottom:14px;min-height:210px;">
                         <div style="font-size:18px;font-weight:700;color:#{color};">
                             {team['TeamName']}
+                        </div>
+                        <div style="display:flex;justify-content:center;margin:10px 0;">
+                            {car_svg(color, width=170)}
                         </div>
                         <div style="font-size:12px;color:#8a92a6;margin:8px 0;">
                             {drivers_html}
