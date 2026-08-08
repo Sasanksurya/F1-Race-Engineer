@@ -25,10 +25,13 @@ def render(session, year: int, driver_code: str):
 
     col_photo, col_info = st.columns([1, 3])
     with col_photo:
-        url = row.get("HeadshotUrl")
+        url = row.get("HeadshotUrlLarge") or row.get("HeadshotUrl")
+        fallback_url = row.get("HeadshotUrl")
         if isinstance(url, str) and url.startswith("http"):
             st.markdown(
-                f'<img src="{url}" loading="lazy" style="width:160px;height:160px;'
+                f'<img src="{url}" loading="lazy" '
+                f'onerror="this.onerror=null;this.src=\'{fallback_url}\';" '
+                f'style="width:160px;height:160px;'
                 f'object-fit:cover;object-position:top center;border-radius:12px;" />',
                 unsafe_allow_html=True,
             )

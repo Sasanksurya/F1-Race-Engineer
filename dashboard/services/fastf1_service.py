@@ -9,6 +9,7 @@ and means components never touch the FastF1 API directly.
 """
 
 import os
+import re
 import pandas as pd
 import streamlit as st
 import fastf1
@@ -126,17 +127,34 @@ def get_session_results(session) -> pd.DataFrame:
     return session.results.copy()
 
 
+def _upscale_headshot(url):
+    """
+    FastF1's HeadshotUrl points at F1's own media CDN, which serves a
+    resized crop based on a "<N>col" segment in the URL path (e.g.
+    ".transform/1col/image.png" is a small thumbnail). Requesting a wider
+    column count returns a genuinely higher-resolution image from the
+    same CDN, rather than stretching a small one, so faces stay sharp
+    and distinct instead of blurring into each other. If the URL doesn't
+    match that pattern, it's returned unchanged.
+    """
+    if not isinstance(url, str) or not url.startswith("http"):
+        return url
+    return re.sub(r"/transform/\d+col/", "/transform/9col/", url)
+
+
 def get_driver_directory(session) -> pd.DataFrame:
     """
     Full driver reference table for this session: code, full name, team,
     nationality, car number, headshot image URL (published by FastF1
-    directly from the official F1 data feed), and current session result.
+    directly from the official F1 data feed, upscaled to a sharper size
+    where possible), and current session result.
     """
     results = session.results.copy()
     if "HeadshotUrl" not in results.columns:
         results["HeadshotUrl"] = None
+    results["HeadshotUrlLarge"] = results["HeadshotUrl"].apply(_upscale_headshot)
     cols = ["Abbreviation", "FullName", "TeamName", "TeamColor", "CountryCode",
-            "DriverNumber", "HeadshotUrl", "Position", "GridPosition", "Points", "Status"]
+            "DriverNumber", "HeadshotUrl", "HeadshotUrlLarge", "Position", "GridPosition", "Points", "Status"]
     cols = [c for c in cols if c in results.columns]
     return results[cols].drop_duplicates(subset="Abbreviation").reset_index(drop=True)
 

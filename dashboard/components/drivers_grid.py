@@ -16,16 +16,19 @@ def render(session):
         cols = st.columns(cols_per_row)
         for col, (_, drv) in zip(cols, row.iterrows()):
             team_color = drv.get("TeamColor", "e10600")
-            url = drv.get("HeadshotUrl")
+            url = drv.get("HeadshotUrlLarge") or drv.get("HeadshotUrl")
+            fallback_url = drv.get("HeadshotUrl")
             has_photo = isinstance(url, str) and url.startswith("http")
 
             # The photo is rendered at a fixed pixel size with object-fit:
-            # cover rather than stretched to the column width, since
-            # FastF1's headshot images aren't very high-resolution and
-            # blowing them up to fill a wide card blurs them badly.
+            # cover rather than stretched to the column width, and uses the
+            # F1 media CDN's larger-size variant (see _upscale_headshot) so
+            # faces stay sharp instead of blurring. onerror falls back to
+            # the original FastF1 URL if the larger variant doesn't exist.
             if has_photo:
                 photo_html = (
                     f'<img src="{url}" loading="lazy" '
+                    f'onerror="this.onerror=null;this.src=\'{fallback_url}\';" '
                     f'style="width:100%;height:160px;object-fit:cover;object-position:top center;'
                     f'border-radius:8px;display:block;margin-bottom:10px;" />'
                 )

@@ -9,14 +9,16 @@ def _driver_header(session, driver_code: str):
     directory = ff1.get_driver_directory(session)
     row = directory[directory["Abbreviation"] == driver_code]
     if row.empty:
-        return driver_code, None, "-"
+        return driver_code, None, None, "-"
     row = row.iloc[0]
-    return row.get("FullName", driver_code), row.get("HeadshotUrl"), row.get("TeamName", "-")
+    photo = row.get("HeadshotUrlLarge") or row.get("HeadshotUrl")
+    fallback = row.get("HeadshotUrl")
+    return row.get("FullName", driver_code), photo, fallback, row.get("TeamName", "-")
 
 
 def render(session, driver_a: str, driver_b: str):
-    name_a, photo_a, team_a = _driver_header(session, driver_a)
-    name_b, photo_b, team_b = _driver_header(session, driver_b)
+    name_a, photo_a, fallback_a, team_a = _driver_header(session, driver_a)
+    name_b, photo_b, fallback_b, team_b = _driver_header(session, driver_b)
 
     st.subheader(f"Driver Comparison: {name_a} vs {name_b}")
 
@@ -24,7 +26,9 @@ def render(session, driver_a: str, driver_b: str):
     with head_a:
         if photo_a:
             st.markdown(
-                f'<img src="{photo_a}" loading="lazy" style="width:120px;height:120px;'
+                f'<img src="{photo_a}" loading="lazy" '
+                f'onerror="this.onerror=null;this.src=\'{fallback_a}\';" '
+                f'style="width:120px;height:120px;'
                 f'object-fit:cover;object-position:top center;border-radius:10px;" />',
                 unsafe_allow_html=True,
             )
@@ -38,7 +42,9 @@ def render(session, driver_a: str, driver_b: str):
     with head_b:
         if photo_b:
             st.markdown(
-                f'<img src="{photo_b}" loading="lazy" style="width:120px;height:120px;'
+                f'<img src="{photo_b}" loading="lazy" '
+                f'onerror="this.onerror=null;this.src=\'{fallback_b}\';" '
+                f'style="width:120px;height:120px;'
                 f'object-fit:cover;object-position:top center;border-radius:10px;" />',
                 unsafe_allow_html=True,
             )
