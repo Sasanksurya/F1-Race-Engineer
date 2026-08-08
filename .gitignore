@@ -1,7 +1,12 @@
-# FastF1 cache — large binary files, never commit these
-dashboard/data/ff1_cache/
-**/*.sqlite
-**/*.ff1pkl
+# FastF1 cache: normally excluded, since it's large and regenerated
+# automatically. HOWEVER, Streamlit Cloud's servers can be blocked or
+# throttled by F1's live-timing API (a known hosting-provider limitation),
+# so for reliable deployment we deliberately COMMIT a pre-warmed cache for
+# a known set of sessions (see scripts/prewarm_cache.py + README). Only
+# the pre-warmed sessions folder is tracked; anything else stays ignored.
+dashboard/data/ff1_cache/*
+!dashboard/data/ff1_cache/.gitkeep
+!dashboard/data/ff1_cache/prewarmed/
 **/cache/
 
 # Python

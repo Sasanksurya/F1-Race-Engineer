@@ -17,7 +17,7 @@ from fastf1.core import Laps
 # ----------------------------------------------------------------------
 # Cache configuration
 # ----------------------------------------------------------------------
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "ff1_cache")
+CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "ff1_cache", "prewarmed")
 try:
     os.makedirs(CACHE_DIR, exist_ok=True)
     fastf1.Cache.enable_cache(CACHE_DIR)

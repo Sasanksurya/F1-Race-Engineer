@@ -101,12 +101,35 @@ servers; every subsequent load of the same session is served from cache.
 
 ## Deploy to Streamlit Cloud
 
-1. Push this repo to GitHub. The `.gitignore` already keeps FastF1's cache
-   files (`.sqlite` / `.ff1pkl`) out of git history.
-2. On share.streamlit.io, connect the repo.
-3. Set Main file path to `dashboard/app.py`.
-4. Deploy. Streamlit Cloud installs `requirements.txt` automatically,
-   including `streamlit-option-menu` for the top navigation bar.
+Streamlit Cloud's servers can sometimes be blocked or throttled by F1's
+live-timing API — a known limitation of that hosting provider's IP
+ranges, even though the exact same code works fine on your own machine.
+If you deploy and see "FastF1 could not load lap data", this is why.
+
+**The fix: pre-warm the cache locally, then commit it.**
+
+1. On your own computer (where FastF1 already works), run:
+   ```bash
+   python scripts/prewarm_cache.py
+   ```
+   This fetches a set of real sessions (edit the `SESSIONS` list in that
+   script to add/remove races) and writes them into
+   `dashboard/data/ff1_cache/prewarmed/`.
+2. Commit and push that cache folder along with your code:
+   ```bash
+   git add dashboard/data/ff1_cache/prewarmed
+   git commit -m "Prewarm FastF1 cache for deployment"
+   git push
+   ```
+3. Push this repo to GitHub, connect it on share.streamlit.io, and set
+   Main file path to `dashboard/app.py`.
+
+Once deployed, selecting one of the pre-warmed season/Grand Prix/session
+combinations reads from the bundled cache instead of calling F1's
+servers live, so it works reliably regardless of Streamlit Cloud's
+network access. Sessions you didn't pre-warm will still attempt a live
+fetch and may fail with the same network error until you add them to
+`SESSIONS` and rerun the script.
 
 ## The forecast model
 
