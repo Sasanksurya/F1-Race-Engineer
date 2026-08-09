@@ -1,6 +1,7 @@
 """Pit Stop Strategy Analysis: count, timing, average duration, strategy score."""
 
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 from services import fastf1_service as ff1
 
@@ -44,7 +45,11 @@ def render(session, drivers: list):
     # time; treat that as a neutral (zero time-loss) contribution to the score.
     summary["StrategyScore"] = (100 - (summary["Stops"] * 8 + summary["AvgPitTime"].fillna(0))).clip(lower=0).round(1)
     summary = summary.sort_values("StrategyScore", ascending=False)
-    st.dataframe(summary, use_container_width=True, hide_index=True)
+    display_summary = summary.copy()
+    display_summary["AvgPitTime"] = display_summary["AvgPitTime"].apply(
+        lambda v: f"{v:.2f}s" if pd.notna(v) else "N/A"
+    )
+    st.dataframe(display_summary, use_container_width=True, hide_index=True)
 
     if not summary.empty:
         best = summary.iloc[0]["Driver"]

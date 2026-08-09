@@ -27,6 +27,9 @@ import os
 ASSETS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "assets", "cars"
 )
+LOGOS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "assets", "logos"
+)
 
 TEAM_SLUGS = {
     "Red Bull Racing": "red_bull",
@@ -44,12 +47,12 @@ TEAM_SLUGS = {
 }
 
 
-def _local_image_path(team_name: str):
+def _find_local_file(directory: str, team_name: str):
     slug = TEAM_SLUGS.get(team_name)
     if not slug:
         return None
     for ext in ("png", "jpg", "jpeg", "webp"):
-        path = os.path.join(ASSETS_DIR, f"{slug}.{ext}")
+        path = os.path.join(directory, f"{slug}.{ext}")
         if os.path.isfile(path):
             return path
     return None
@@ -84,4 +87,14 @@ def team_car_image_path(team_name: str):
     supplied one, otherwise None. Callers should use st.image(path) when
     this returns something, and fall back to car_svg() when it's None.
     """
-    return _local_image_path(team_name)
+    return _find_local_file(ASSETS_DIR, team_name)
+
+
+def team_logo_path(team_name: str):
+    """
+    Returns the local file path for a team's real logo/badge if you've
+    supplied one at dashboard/assets/logos/<team_slug>.png, otherwise
+    None. Separate from the car photo so you can supply either, both,
+    or neither independently.
+    """
+    return _find_local_file(LOGOS_DIR, team_name)

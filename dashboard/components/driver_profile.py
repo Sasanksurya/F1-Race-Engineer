@@ -9,6 +9,7 @@ history built by walking every completed race of the season.
 import streamlit as st
 import plotly.graph_objects as go
 from services import fastf1_service as ff1
+from components.html_utils import render_html
 
 
 def render(session, year: int, driver_code: str):
@@ -28,19 +29,17 @@ def render(session, year: int, driver_code: str):
         url = row.get("HeadshotUrlLarge") or row.get("HeadshotUrl")
         fallback_url = row.get("HeadshotUrl")
         if isinstance(url, str) and url.startswith("http"):
-            st.markdown(
+            render_html(
                 f'<img src="{url}" loading="lazy" '
                 f'onerror="this.onerror=null;this.src=\'{fallback_url}\';" '
                 f'style="width:160px;height:160px;'
-                f'object-fit:cover;object-position:top center;border-radius:12px;" />',
-                unsafe_allow_html=True,
+                f'object-fit:cover;object-position:top center;border-radius:12px;" />'
             )
         else:
-            st.markdown(
+            render_html(
                 f"<div style='width:120px;height:120px;border-radius:50%;background:#1c1f26;"
                 f"display:flex;align-items:center;justify-content:center;font-size:28px;"
-                f"font-weight:600;color:#{team_color};'>{driver_code}</div>",
-                unsafe_allow_html=True,
+                f"font-weight:600;color:#{team_color};'>{driver_code}</div>"
             )
 
     with col_info:

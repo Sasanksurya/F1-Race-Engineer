@@ -3,6 +3,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 from services import fastf1_service as ff1
+from components.html_utils import render_html
 
 
 def _driver_header(session, driver_code: str):
@@ -25,28 +26,23 @@ def render(session, driver_a: str, driver_b: str):
     head_a, head_vs, head_b = st.columns([2, 1, 2])
     with head_a:
         if photo_a:
-            st.markdown(
+            render_html(
                 f'<img src="{photo_a}" loading="lazy" '
                 f'onerror="this.onerror=null;this.src=\'{fallback_a}\';" '
                 f'style="width:120px;height:120px;'
-                f'object-fit:cover;object-position:top center;border-radius:10px;" />',
-                unsafe_allow_html=True,
+                f'object-fit:cover;object-position:top center;border-radius:10px;" />'
             )
         st.markdown(f"**{name_a}**")
         st.caption(team_a)
     with head_vs:
-        st.markdown(
-            "<div style='text-align:center;padding-top:35px;font-size:22px;color:#6b7280;'>VS</div>",
-            unsafe_allow_html=True,
-        )
+        render_html("<div style='text-align:center;padding-top:35px;font-size:22px;color:#6b7280;'>VS</div>")
     with head_b:
         if photo_b:
-            st.markdown(
+            render_html(
                 f'<img src="{photo_b}" loading="lazy" '
                 f'onerror="this.onerror=null;this.src=\'{fallback_b}\';" '
                 f'style="width:120px;height:120px;'
-                f'object-fit:cover;object-position:top center;border-radius:10px;" />',
-                unsafe_allow_html=True,
+                f'object-fit:cover;object-position:top center;border-radius:10px;" />'
             )
         st.markdown(f"**{name_b}**")
         st.caption(team_b)
