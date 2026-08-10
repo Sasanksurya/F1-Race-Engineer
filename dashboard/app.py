@@ -43,28 +43,67 @@ html, body,
 }
 [data-testid="stHeader"] { background-color: transparent !important; }
 section[data-testid="stSidebar"] { display: none !important; }
-p, span, label, div, li, .stMarkdown, .stCaption {
+
+/* Scoped to .stApp only. Streamlit/BaseWeb render dropdown option lists,
+   tooltips, and other overlays in a portal OUTSIDE the .stApp container
+   (as a sibling, appended to <body>), specifically so they aren't clipped
+   by their parent's layout. An earlier, unscoped "div, span, p { color }"
+   rule here matched inside those portals too, which could make dropdown
+   option text invisible against its own (unstyled) popup background —
+   the dropdown box looked fine, but opening it showed nothing you could
+   read or click reliably. Scoping to .stApp fixes that: it only styles
+   content actually inside the app shell, leaving portal overlays alone
+   so they keep their own (visible, functional) default styling.
+*/
+.stApp p, .stApp span, .stApp label, .stApp div, .stApp li,
+.stApp .stMarkdown, .stApp .stCaption {
     color: #e6e8ee;
 }
-h1, h2, h3, h4 { font-family: 'Titillium Web', sans-serif; font-weight: 700; color: #ffffff !important; }
-div[data-testid="stMetric"] {
+.stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+    font-family: 'Titillium Web', sans-serif; font-weight: 700; color: #ffffff !important;
+}
+.stApp div[data-testid="stMetric"] {
     background-color: #11141c;
     border: 1px solid #262b36;
     border-top: 3px solid #e10600;
     border-radius: 10px;
     padding: 12px 16px 8px 16px;
 }
-div[data-testid="stMetricLabel"] { color: #8a92a6 !important; }
-div[data-testid="stMetricValue"] { color: #ffffff !important; }
-.stTabs [data-baseweb="tab-list"] { gap: 4px; }
-.stTabs [data-baseweb="tab"] {
+.stApp div[data-testid="stMetricLabel"] { color: #8a92a6 !important; }
+.stApp div[data-testid="stMetricValue"] { color: #ffffff !important; }
+.stApp .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+.stApp .stTabs [data-baseweb="tab"] {
     background-color: #11141c; border-radius: 8px 8px 0 0;
     color: #8a92a6; padding: 8px 18px;
 }
-.stTabs [aria-selected="true"] { color: #ffffff !important; border-bottom: 3px solid #e10600; }
-div[data-baseweb="select"] > div { background-color: #11141c !important; border-color: #262b36 !important; color: #ffffff !important; }
-div[data-baseweb="select"] span { color: #ffffff !important; }
-.block-container { padding-top: 1.2rem; }
+.stApp .stTabs [aria-selected="true"] { color: #ffffff !important; border-bottom: 3px solid #e10600; }
+
+/* The closed dropdown BOX (inside .stApp) — this part was already fine. */
+.stApp div[data-baseweb="select"] > div {
+    background-color: #11141c !important; border-color: #262b36 !important; color: #ffffff !important;
+}
+.stApp div[data-baseweb="select"] span { color: #ffffff !important; }
+
+/* The OPEN dropdown's option list. This IS the portal content, so it's
+   deliberately targeted separately (not scoped under .stApp, since it
+   isn't inside it) and given its own dark styling so it matches the
+   theme AND stays legible/clickable. */
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] div[role="option"],
+ul[role="listbox"] li,
+ul[role="listbox"] div[role="option"] {
+    background-color: #11141c !important;
+    color: #e6e8ee !important;
+}
+div[data-baseweb="popover"] li:hover,
+div[data-baseweb="popover"] div[role="option"]:hover,
+ul[role="listbox"] li:hover,
+ul[role="listbox"] div[role="option"]:hover {
+    background-color: #1b1f2a !important;
+}
+div[data-baseweb="popover"] { background-color: #11141c !important; }
+
+.stApp .block-container { padding-top: 1.2rem; }
 .f1-topbar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 6px 0 14px 0; margin-bottom: 4px;
@@ -78,11 +117,11 @@ div[data-baseweb="select"] span { color: #ffffff !important; }
 }
 .f1-logo-text { font-size: 19px; font-weight: 800; color: #ffffff !important; letter-spacing: 0.01em; }
 .f1-logo-sub { font-size: 11px; color: #8a92a6 !important; margin-top: -2px; }
-div[data-testid="stRadio"] {
+.stApp div[data-testid="stRadio"] {
     background-color: #11141c; border-radius: 10px; padding: 6px 10px;
     border: 1px solid #262b36;
 }
-div[data-testid="stRadio"] label {
+.stApp div[data-testid="stRadio"] label {
     padding: 4px 4px;
 }
 </style>""")
@@ -111,15 +150,22 @@ with season_col:
         label_visibility="collapsed", key="select_year",
     )
 
+# Fetch the calendar, but DON'T st.stop() here even on failure — that would
+# happen before the Grand Prix and Session dropdowns below ever get a
+# chance to render, making it look like those widgets "aren't coming" at
+# all. Instead, fall back to an empty schedule and surface the error after
+# the full top bar (all widgets) has been drawn.
+schedule_error = None
 try:
     schedule = ff1.get_event_schedule(year)
 except Exception as e:
-    st.error(f"Could not load calendar: {e}")
-    st.stop()
+    schedule_error = str(e)
+    schedule = None
 
 with event_col:
+    event_options = schedule["EventName"].tolist() if schedule is not None else ["(calendar unavailable)"]
     event = st.selectbox(
-        "Grand Prix", options=schedule["EventName"].tolist(),
+        "Grand Prix", options=event_options,
         label_visibility="collapsed", key="select_event",
     )
 
@@ -135,6 +181,10 @@ with session_col:
 
 with load_col:
     load_clicked = st.button("Load", type="primary", use_container_width=True)
+
+if schedule_error:
+    st.error(f"Could not load calendar: {schedule_error}")
+    st.stop()
 
 # Reload automatically whenever the selected combo changes, not only when
 # Load is clicked. This is what actually makes changing the dropdowns

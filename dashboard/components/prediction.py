@@ -1,25 +1,74 @@
 """
 Race Forecast
 --------------------------
-A transparent, rule-based scoring model (not a black box) that blends:
-  - recent race pace (from lap data)
-  - qualifying / grid position
-  - constructor strength (session points)
-  - consistency (lap time spread)
-into a Win / Podium probability and expected finishing position.
+Uses a REAL trained ML model (scikit-learn RandomForestRegressor, see
+scripts/train_model.py) when one has been trained and committed to
+models/finish_position_model.joblib.
 
-This is intentionally explainable. A production version would swap
-_compute_features() for a trained model (e.g. gradient boosted trees on
-historical race data) while keeping the same output contract.
+If no trained model exists yet, falls back to a transparent, rule-based
+scoring formula that blends race pace, grid position, constructor
+strength, and consistency — so the app never breaks or shows nothing
+just because you haven't trained a model yet.
+
+Both paths produce the same output: expected finishing position, win
+probability, and podium probability per driver.
 """
 
+import os
 import streamlit as st
 import numpy as np
 import pandas as pd
 from services import fastf1_service as ff1
+from services.ml_features import extract_features, FEATURE_COLUMNS
+
+MODEL_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models", "finish_position_model.joblib"
+)
 
 
-def _compute_features(session, drivers: list) -> pd.DataFrame:
+@st.cache_resource(show_spinner=False)
+def _load_trained_model():
+    if not os.path.isfile(MODEL_PATH):
+        return None
+    try:
+        import joblib
+        return joblib.load(MODEL_PATH)
+    except Exception:
+        return None
+
+
+def _predicted_positions_to_probabilities(df: pd.DataFrame, position_col: str) -> pd.DataFrame:
+    """Shared conversion: a predicted/estimated finishing position per
+    driver becomes a rank, then win/podium probabilities. Used for both
+    the ML path and the rule-based fallback so the output looks the same
+    regardless of which produced it."""
+    df = df.copy()
+    df["ExpectedFinish"] = df[position_col].rank(method="first").astype(int)
+
+    # Softer positions get lower "goodness" score for the probability calc.
+    max_pos = df["ExpectedFinish"].max()
+    goodness = (max_pos + 1) - df["ExpectedFinish"]
+    total = goodness.sum()
+    df["WinProbability"] = (goodness / total * 100).round(1) if total > 0 else 0.0
+    df["PodiumProbability"] = np.minimum(df["WinProbability"] * 2.4, 95).round(1)
+    return df.sort_values("ExpectedFinish")
+
+
+def _ml_forecast(session, drivers: list):
+    model = _load_trained_model()
+    if model is None:
+        return None
+
+    feats = extract_features(session, drivers)
+    if feats.empty:
+        return None
+
+    X = feats[FEATURE_COLUMNS]
+    feats["PredictedPosition"] = model.predict(X)
+    return _predicted_positions_to_probabilities(feats, "PredictedPosition")
+
+
+def _rule_based_forecast(session, drivers: list):
     laps = ff1.get_all_laps(session)
     results = ff1.get_session_results(session)
     name_map = ff1.get_driver_name_map(session)
@@ -35,21 +84,14 @@ def _compute_features(session, drivers: list) -> pd.DataFrame:
         team_points = results.loc[results["Abbreviation"] == drv, "Points"]
         team_strength = float(team_points.iloc[0]) if not team_points.empty else 0.0
         rows.append({
-            "Driver": drv,
-            "DriverName": name_map.get(drv, drv),
-            "AvgPace": avg_pace,
-            "Consistency": consistency,
-            "Grid": grid,
-            "TeamStrength": team_strength,
+            "Driver": drv, "DriverName": name_map.get(drv, drv),
+            "AvgPace": avg_pace, "Consistency": consistency,
+            "Grid": grid, "TeamStrength": team_strength,
         })
-    return pd.DataFrame(rows)
-
-
-def _score_to_probabilities(df: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame(rows)
     if df.empty:
         return df
 
-    df = df.copy()
     df["PaceScore"] = 1 / df["AvgPace"]
     df["ConsistencyScore"] = 1 / (df["Consistency"].fillna(df["Consistency"].mean()) + 0.01)
     df["GridScore"] = 1 / df["Grid"]
@@ -60,26 +102,37 @@ def _score_to_probabilities(df: pd.DataFrame) -> pd.DataFrame:
         df[col + "_norm"] = (df[col] - df[col].min()) / rng if rng > 0 else 0.5
 
     df["CompositeScore"] = (
-        df["PaceScore_norm"] * 0.40
-        + df["GridScore_norm"] * 0.25
-        + df["TeamScore_norm"] * 0.25
-        + df["ConsistencyScore_norm"] * 0.10
+        df["PaceScore_norm"] * 0.40 + df["GridScore_norm"] * 0.25
+        + df["TeamScore_norm"] * 0.25 + df["ConsistencyScore_norm"] * 0.10
     )
+    # Convert to a "position" so it shares the same downstream conversion
+    # as the ML path (lower score = worse position number).
+    df["RuleRank"] = df["CompositeScore"].rank(ascending=False, method="first")
+    return _predicted_positions_to_probabilities(df, "RuleRank")
 
-    total = df["CompositeScore"].sum()
-    df["WinProbability"] = (df["CompositeScore"] / total * 100).round(1)
-    df["PodiumProbability"] = np.minimum(df["WinProbability"] * 2.4, 95).round(1)
-    df["ExpectedFinish"] = df["CompositeScore"].rank(ascending=False).astype(int)
-    return df.sort_values("CompositeScore", ascending=False)
+
+def get_forecast(session, drivers: list):
+    """
+    Public entry point other components (like race_engineer.py) can call
+    to get the same forecast table render() displays, without duplicating
+    the ML-vs-rule-based fallback logic.
+    """
+    scored = _ml_forecast(session, drivers)
+    if scored is None or scored.empty:
+        scored = _rule_based_forecast(session, drivers)
+    return scored
 
 
 def render(session, drivers: list):
     st.subheader("Race Forecast")
-    feats = _compute_features(session, drivers)
-    scored = _score_to_probabilities(feats)
 
-    if scored.empty:
-        st.warning("Not enough lap data to generate a prediction for the selected drivers.")
+    scored = _ml_forecast(session, drivers)
+    using_ml = scored is not None and not scored.empty
+    if not using_ml:
+        scored = _rule_based_forecast(session, drivers)
+
+    if scored is None or scored.empty:
+        st.warning("Not enough lap data to generate a forecast for the selected drivers.")
         return
 
     top = scored.iloc[0]
@@ -89,7 +142,7 @@ def render(session, drivers: list):
     c3.metric("Podium Probability", f"{top['PodiumProbability']:.0f}%")
     c4.metric("Expected Finish", f"P{int(top['ExpectedFinish'])}")
 
-    st.markdown("#### Full Field Prediction")
+    st.markdown("#### Full Field Forecast")
     display_cols = ["DriverName", "ExpectedFinish", "WinProbability", "PodiumProbability"]
     st.dataframe(
         scored[display_cols].rename(columns={
@@ -99,7 +152,15 @@ def render(session, drivers: list):
         use_container_width=True, hide_index=True,
     )
 
-    st.caption(
-        "Model: transparent weighted composite of race pace, grid position, "
-        "constructor strength and consistency. Not a black-box prediction."
-    )
+    if using_ml:
+        st.caption(
+            "Model: trained RandomForestRegressor (scikit-learn), predicting finishing "
+            "position from grid position, race pace, consistency, weather and team. "
+            "See scripts/train_model.py."
+        )
+    else:
+        st.caption(
+            "Model: transparent weighted composite of race pace, grid position, "
+            "constructor strength and consistency. No trained model found at "
+            "models/finish_position_model.joblib — run scripts/train_model.py to enable it."
+        )

@@ -10,7 +10,7 @@ import streamlit as st
 import numpy as np
 from services import fastf1_service as ff1
 from components.strategy import recommend_strategy
-from components.prediction import _compute_features, _score_to_probabilities
+from components.prediction import get_forecast
 
 
 def _tyre_note(session, driver_code: str) -> str:
@@ -36,8 +36,7 @@ def render(session, driver_code: str, field: list):
         f"strategy, tyre and weather models."
     )
 
-    feats = _compute_features(session, field)
-    scored = _score_to_probabilities(feats)
+    scored = get_forecast(session, field)
     result_row = scored[scored["Driver"] == driver_code]
     strategy = recommend_strategy(session, driver_code)
     tyre_note = _tyre_note(session, driver_code)

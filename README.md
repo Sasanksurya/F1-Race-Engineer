@@ -133,13 +133,30 @@ fetch and may fail with the same network error until you add them to
 
 ## The forecast model
 
-`components/prediction.py` uses a transparent weighted-score model, not a
-trained model: it blends race pace, grid position, constructor strength
-and consistency into a win/podium probability, so every number on screen
-is explainable from the underlying data. If you have a trained model
-(scikit-learn, XGBoost, or similar) built on historical race data, drop
-its artifact into `models/` and swap the scoring function's internals in
-`_score_to_probabilities()` — the rest of the app doesn't need to change.
+`components/prediction.py` uses a **real trained ML model** (scikit-learn
+`RandomForestRegressor`) when one exists at
+`models/finish_position_model.joblib`, predicting each driver's finishing
+position from grid position, race pace, consistency, weather, and team.
+
+If that file doesn't exist yet (e.g. a fresh clone before you've trained
+one), it falls back to a transparent weighted-score formula instead, so
+the app never breaks or shows nothing.
+
+**To train the model:**
+```bash
+python scripts/prewarm_cache.py   # if you haven't already
+python scripts/train_model.py
+git add models/finish_position_model.joblib
+git commit -m "Train finishing-position model"
+git push
+```
+
+Honesty note: with ~8-9 races of training data, this model won't be
+highly accurate — that's a limit of the data, not a bug. It's a real
+model learning from data rather than a hand-tuned formula, and accuracy
+improves as you add more sessions to `SESSIONS` in
+`scripts/prewarm_cache.py` and `RACE_SESSIONS` in `scripts/train_model.py`,
+then rerun both.
 
 ## Known engineering notes
 
